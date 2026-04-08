@@ -7,7 +7,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 <p align="center">
-   <img src="https://i.postimg.cc/xjMxPPTX/Screenshot-2026-03-23-120710.png" alt="Campus Shuttle Site Preview" width="800" />
+   <img src="https://i.postimg.cc/L4tfBPkF/Whats-App-Image-2026-04-08-at-11-53-23-AM.jpg" alt="KuppiFeed Preview" width="800" />
 </p>
 
 ---
