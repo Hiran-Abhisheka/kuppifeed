@@ -13,6 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create .env file
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL || 'https://placeholder.supabase.co' }}" >> .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || 'placeholder_key' }}" >> .env
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -72,7 +77,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: kuppifeed-release.apk
           path: build/app/outputs/flutter-apk/app-release.apk
@@ -96,7 +101,7 @@ jobs:
         run: flutter build ios --release --no-codesign
 
       - name: Upload iOS build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: kuppifeed-ios-release
           path: build/ios/Release-iphoneos/
@@ -120,7 +125,7 @@ jobs:
         run: flutter build web --release
 
       - name: Upload Web build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: kuppifeed-web-release
           path: build/web/
