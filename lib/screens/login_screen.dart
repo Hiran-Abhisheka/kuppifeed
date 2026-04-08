@@ -46,7 +46,8 @@ class LoginScreen extends StatelessWidget {
                 const Text('Password',
                     style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                const CustomInput(hintText: 'Enter your password', obscureText: true),
+                const CustomInput(
+                    hintText: 'Enter your password', obscureText: true),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,

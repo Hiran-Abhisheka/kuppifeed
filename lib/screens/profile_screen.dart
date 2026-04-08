@@ -65,10 +65,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _logout() async {
     try {
       await Supabase.instance.client.auth.signOut();
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Logout error: $e')),
       );
@@ -147,7 +147,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withAlpha((0.2 * 255).toInt()),
+                                      color: Colors.black
+                                          .withAlpha((0.2 * 255).toInt()),
                                       blurRadius: 10,
                                       offset: const Offset(0, 4),
                                     ),
@@ -222,7 +223,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withAlpha((0.05 * 255).toInt()),
+                                    color: Colors.black
+                                        .withAlpha((0.05 * 255).toInt()),
                                     blurRadius: 10,
                                     offset: const Offset(0, 2),
                                   ),

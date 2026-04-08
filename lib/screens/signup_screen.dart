@@ -127,20 +127,18 @@ class _SignupScreenState extends State<SignupScreen> {
                             'password': hashedPassword,
                           });
 
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Signup successful!')),
-                            );
-                            Navigator.pushReplacementNamed(context, '/login');
-                          }
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Signup successful!')),
+                          );
+                          Navigator.pushReplacementNamed(context, '/login');
                         }
                       } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $e')),
-                          );
-                        }
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $e')),
+                        );
                       }
                     },
                     child: const Text('Sign Up',
