@@ -37,7 +37,7 @@ class KuppiFeedApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSwatch().copyWith(
           primary: const Color(0xFF6C63FF),
           secondary: const Color(0xFFB2A4FF),
-          background: const Color(0xFFE0E0E0),
+          surface: const Color(0xFFE0E0E0),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
