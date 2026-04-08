@@ -15,6 +15,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool isLoading = true;
   bool isEditing = false;
   bool isSaving = false;
+  List<Map<String, dynamic>> userPosts = [];
+  bool isLoadingPosts = false;
 
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _fullNameController = TextEditingController();
@@ -58,6 +60,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             isLoading = false;
             _initializeControllers();
           });
+          // Load user's posts after loading profile
+          _loadUserPosts(userId);
         }
       } else {
         debugPrint('No user ID found in storage');
@@ -72,6 +76,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() {
           isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadUserPosts(String userId) async {
+    setState(() {
+      isLoadingPosts = true;
+    });
+    try {
+      final response = await Supabase.instance.client
+          .from('posts')
+          .select('id, title, description, image_urls, created_at')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      if (mounted) {
+        setState(() {
+          userPosts = List<Map<String, dynamic>>.from(response);
+          isLoadingPosts = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user posts: $e');
+      if (mounted) {
+        setState(() {
+          isLoadingPosts = false;
         });
       }
     }
@@ -133,6 +164,174 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating profile: $e')),
+      );
+    }
+  }
+
+  Future<void> _deletePost(String postId, List<String> imageUrls) async {
+    // Show confirmation dialog
+    showDialog(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Delete Post'),
+        content: const Text('Are you sure you want to delete this post?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performDelete(postId, imageUrls);
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editPost(Map<String, dynamic> post) async {
+    final titleController = TextEditingController(text: post['title'] ?? '');
+    final descriptionController =
+        TextEditingController(text: post['description'] ?? '');
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Edit Post'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+                maxLines: 1,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descriptionController,
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performEdit(
+                  post['id'], titleController.text, descriptionController.text);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performEdit(
+      String postId, String newTitle, String newDescription) async {
+    try {
+      await Supabase.instance.client.from('posts').update({
+        'title': newTitle,
+        'description': newDescription,
+      }).eq('id', postId);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Post updated successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Reload posts
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id');
+      if (userId != null) {
+        _loadUserPosts(userId);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating post: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _performDelete(String postId, List<String> imageUrls) async {
+    try {
+      // Delete associated images from storage
+      for (String imageUrl in imageUrls) {
+        try {
+          // Extract file path from URL
+          final Uri uri = Uri.parse(imageUrl);
+          final pathSegments = uri.pathSegments;
+          if (pathSegments.length >= 2) {
+            final filePath =
+                pathSegments.sublist(pathSegments.length - 2).join('/');
+            await Supabase.instance.client.storage
+                .from('content')
+                .remove([filePath]);
+          }
+        } catch (e) {
+          debugPrint('Error deleting image: $e');
+          // Continue even if image deletion fails
+        }
+      }
+
+      // Delete post from database (this will cascade delete likes and comments)
+      await Supabase.instance.client.from('posts').delete().eq('id', postId);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Post deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Reload posts
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id');
+      if (userId != null) {
+        _loadUserPosts(userId);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting post: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -442,6 +641,205 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 32),
+              // My Posts Section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'My Posts',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (isLoadingPosts)
+                const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(),
+                )
+              else if (userPosts.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.image_not_supported,
+                          size: 48,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No posts yet',
+                          style: TextStyle(color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: userPosts.length,
+                  itemBuilder: (context, index) {
+                    final post = userPosts[index];
+                    final imageUrls =
+                        List<String>.from(post['image_urls'] ?? []);
+                    final hasImages = imageUrls.isNotEmpty;
+
+                    return GestureDetector(
+                      onLongPress: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) => AlertDialog(
+                            title: Text(post['title'] ?? 'Post'),
+                            content: const Text('Choose an action'),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _editPost(post);
+                                },
+                                child: const Text('Edit'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _deletePost(post['id'], imageUrls);
+                                },
+                                child: const Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.grey[300],
+                        ),
+                        child: hasImages
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Stack(
+                                  children: [
+                                    Image.network(
+                                      imageUrls[0],
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return const Center(
+                                          child: Icon(
+                                            Icons.image_not_supported,
+                                            color: Colors.grey,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    // Image count badge if multiple images
+                                    if (imageUrls.length > 1)
+                                      Positioned(
+                                        top: 4,
+                                        left: 4,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black54,
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            '${imageUrls.length}',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    // Edit and Delete buttons in top right
+                                    Positioned(
+                                      top: 4,
+                                      right: 4,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          GestureDetector(
+                                            onTap: () {
+                                              _editPost(post);
+                                            },
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.withAlpha(
+                                                    (0.8 * 255).toInt()),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              padding: const EdgeInsets.all(4),
+                                              child: const Icon(
+                                                Icons.edit,
+                                                color: Colors.white,
+                                                size: 16,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          GestureDetector(
+                                            onTap: () {
+                                              _deletePost(
+                                                  post['id'], imageUrls);
+                                            },
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.red.withAlpha(
+                                                    (0.8 * 255).toInt()),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              padding: const EdgeInsets.all(4),
+                                              child: const Icon(
+                                                Icons.close,
+                                                color: Colors.white,
+                                                size: 16,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : const Center(
+                                child: Icon(
+                                  Icons.image,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                      ),
+                    );
+                  },
+                ),
               const SizedBox(height: 32),
             ],
           ),
