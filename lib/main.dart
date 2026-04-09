@@ -12,12 +12,12 @@ import 'screens/signup_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables
+  // Load environment variables - works for both dev and release
   try {
-    await dotenv.load(fileName: '.env');
+    await dotenv.load();
     debugPrint('✓ .env file loaded successfully');
   } catch (e) {
-    debugPrint('⚠ Warning: .env file not found');
+    debugPrint('⚠ Warning: .env file not found - $e');
   }
 
   final supabaseUrl = dotenv.env['SUPABASE_URL'];
