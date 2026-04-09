@@ -139,13 +139,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             radius: 60,
                             backgroundColor: Colors.white,
                             backgroundImage: userData?['avatar_url'] != null
-                                ? NetworkImage(userData!['avatar_url'] as String)
+                                ? NetworkImage(
+                                    userData!['avatar_url'] as String)
                                 : null,
                             child: userData?['avatar_url'] == null
                                 ? Text(
-                                    (userData?['username'] as String? ?? widget.username)
-                                        .isNotEmpty
-                                        ? (userData?['username'] as String? ?? widget.username)[0]
+                                    (userData?['username'] as String? ??
+                                                widget.username)
+                                            .isNotEmpty
+                                        ? (userData?['username'] as String? ??
+                                                widget.username)[0]
                                             .toUpperCase()
                                         : '?',
                                     style: const TextStyle(
@@ -212,7 +215,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             padding: const EdgeInsets.all(32),
                             child: CircularProgressIndicator(
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                const Color(0xFF6C63FF).withAlpha((0.6 * 255).toInt()),
+                                const Color(0xFF6C63FF)
+                                    .withAlpha((0.6 * 255).toInt()),
                               ),
                             ),
                           ),
