@@ -37,6 +37,14 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    // Configure APK output name
+    applicationVariants.all {
+        outputs.all {
+            val appName = "kuppifeed"
+            outputFileName = "${appName}-${versionName}.apk"
+        }
+    }
 }
 
 flutter {
