@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -12,12 +13,30 @@ import 'screens/signup_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables (automatically from assets in release, filesystem in debug)
+  // Load environment variables from assets using rootBundle (works in APK)
   try {
-    await dotenv.load();
-    debugPrint('✓ .env file loaded successfully');
+    final envContent = await rootBundle.loadString('.env');
+    debugPrint('✓ .env file loaded from assets');
+    
+    // Parse .env file manually
+    final lines = envContent.split('\n');
+    for (final line in lines) {
+      if (line.isNotEmpty && !line.startsWith('#')) {
+        final parts = line.split('=');
+        if (parts.length == 2) {
+          dotenv.env[parts[0].trim()] = parts[1].trim();
+        }
+      }
+    }
+    debugPrint('✓ Environment variables parsed');
   } catch (e) {
-    debugPrint('⚠ Warning: .env file not found - $e');
+    debugPrint('⚠ Could not load .env from assets: $e');
+    debugPrint('Falling back to dotenv.load()...');
+    try {
+      await dotenv.load();
+    } catch (e2) {
+      debugPrint('⚠ Also failed: $e2');
+    }
   }
 
   final supabaseUrl = dotenv.env['SUPABASE_URL'];
