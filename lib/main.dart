@@ -13,45 +13,45 @@ import 'screens/signup_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from assets using rootBundle
+  String supabaseUrl = '';
+  String supabaseKey = '';
+
+  // Try to load environment variables
   try {
-    final envContent = await rootBundle.loadString('assets/.env');
-    debugPrint('✓ .env file loaded from assets (${envContent.length} bytes)');
-    
-    // Parse .env file manually
-    final lines = envContent.split('\n');
-    for (final line in lines) {
-      if (line.isNotEmpty && !line.startsWith('#')) {
+    // In debug: load from root, in release: load from assets
+    await dotenv.load(fileName: '.env');
+    debugPrint('✓ .env loaded from root');
+    supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+    supabaseKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  } catch (e) {
+    debugPrint('⚠ Could not load .env: $e');
+    // Try fallback for release APK
+    try {
+      final envContent = await rootBundle.loadString('assets/.env');
+      // Parse manually
+      for (final line in envContent.split('\n')) {
+        if (line.isEmpty || line.startsWith('#')) continue;
         final parts = line.split('=');
         if (parts.length == 2) {
           final key = parts[0].trim();
           final value = parts[1].trim();
-          dotenv.env[key] = value;
-          debugPrint('✓ Loaded: $key=${value.substring(0, (value.length / 2).toInt())}...');
+          if (key == 'SUPABASE_URL') supabaseUrl = value;
+          if (key == 'SUPABASE_ANON_KEY') supabaseKey = value;
         }
       }
-    }
-    debugPrint('✓ Total env variables parsed: ${dotenv.env.length}');
-  } catch (e) {
-    debugPrint('✗ Could not load assets/.env from assets: $e');
-    debugPrint('Falling back to dotenv.load()...');
-    try {
-      await dotenv.load();
-      debugPrint('✓ Fallback dotenv.load() succeeded');
+      debugPrint('✓ Loaded from assets/.env');
     } catch (e2) {
-      debugPrint('✗ Fallback also failed: $e2');
+      debugPrint('✗ Both .env loads failed: $e2');
     }
   }
 
-  final supabaseUrl = dotenv.env['SUPABASE_URL'];
-  final supabaseKey = dotenv.env['SUPABASE_ANON_KEY'];
-
   debugPrint('═════════════════════════════════════');
-  debugPrint('SUPABASE_URL: $supabaseUrl');
-  debugPrint('SUPABASE_ANON_KEY: ${supabaseKey?.substring(0, 20)}...');
+  debugPrint('Supabase URL: ${supabaseUrl.isEmpty ? 'NOT FOUND' : 'FOUND'}');
+  debugPrint('Supabase Key: ${supabaseKey.isEmpty ? 'NOT FOUND' : 'FOUND'}');
   debugPrint('═════════════════════════════════════');
 
-  if (supabaseUrl != null && supabaseKey != null) {
+  // Initialize Supabase with loaded credentials
+  if (supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty) {
     try {
       await Supabase.initialize(
         url: supabaseUrl,
@@ -59,11 +59,10 @@ void main() async {
       );
       debugPrint('✓ Supabase initialized successfully');
     } catch (e) {
-      debugPrint('✗ Supabase initialization error: $e');
-      rethrow;
+      debugPrint('✗ Supabase initialization failed: $e');
     }
   } else {
-    debugPrint('✗ ERROR: Missing Supabase credentials in .env file!');
+    debugPrint('✗ Supabase credentials missing - login will not work');
   }
 
   runApp(const KuppiFeedApp());

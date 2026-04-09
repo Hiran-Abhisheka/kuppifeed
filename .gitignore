@@ -48,6 +48,7 @@ app.*.map.json
 .env
 .env.local
 .env.*.local
+assets/.env
 *.key
 *.pem
 google-services.json
